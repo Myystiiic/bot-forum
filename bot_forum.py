@@ -1,144 +1,182 @@
+
+import os
+import json
+from pathlib import Path
+
 import requests
 from bs4 import BeautifulSoup
-import time
 
-CHECK_INTERVAL = 60
+STATE_FILE = Path("notifications_state.json")
 
-WEBHOOK_PREZ_SCENAR_PARTOCH = "COLLE_ICI_LE_WEBHOOK_PREZ_SCENAR_PARTOCH"
-WEBHOOK_DEMANDES_FOS = "COLLE_ICI_LE_WEBHOOK_DEMANDES_FOS"
+WEBHOOK_ADMIN = os.environ["DISCORD_WEBHOOK_ADMIN"]
+WEBHOOK_DEMANDES = os.environ["DISCORD_WEBHOOK_DEMANDES"]
 
 TOPICS = [
     {
         "name": "Fiche terminée",
         "url": "https://veinsofrevenge.forumactif.com/t21-01-prevenir-que-ma-fiche-est-terminee",
-        "webhook": "https://discord.com/api/webhooks/1500599105406369972/a7aW_2iZeAVvsnzvUhYppBQa66fA5g-mtIl0tkc_GPCFCbIK-SyWb7acZSEAV4bDSVde"
+        "webhook": WEBHOOK_ADMIN,
     },
     {
         "name": "Faire valider son formulaire",
         "url": "https://veinsofrevenge.forumactif.com/t19-01-faire-valider-son-formulaire",
-        "webhook": "https://discord.com/api/webhooks/1500599105406369972/a7aW_2iZeAVvsnzvUhYppBQa66fA5g-mtIl0tkc_GPCFCbIK-SyWb7acZSEAV4bDSVde"
+        "webhook": WEBHOOK_ADMIN,
     },
     {
         "name": "Demandes de partenariats",
         "url": "https://veinsofrevenge.forumactif.com/t8-00-explications-et-codes",
-        "webhook": "https://discord.com/api/webhooks/1500599105406369972/a7aW_2iZeAVvsnzvUhYppBQa66fA5g-mtIl0tkc_GPCFCbIK-SyWb7acZSEAV4bDSVde"
+        "webhook": WEBHOOK_ADMIN,
     },
-
     {
         "name": "Demande de RPs",
         "url": "https://veinsofrevenge.forumactif.com/t10-01-demande-de-rps",
-        "webhook": "https://discord.com/api/webhooks/1500604680412205206/1NAe_kPICVjdl9QV6vEe_mPTW75yKVgZUoX7kg6m5US5QmxAnzeSv6JHsJ8ESK0BLv0f"
+        "webhook": WEBHOOK_DEMANDES,
     },
     {
         "name": "Intervention MJ",
         "url": "https://veinsofrevenge.forumactif.com/t11-02-intervention-mj",
-        "webhook": "https://discord.com/api/webhooks/1500604680412205206/1NAe_kPICVjdl9QV6vEe_mPTW75yKVgZUoX7kg6m5US5QmxAnzeSv6JHsJ8ESK0BLv0f"
+        "webhook": WEBHOOK_DEMANDES,
     },
     {
         "name": "Intervention PNJ",
         "url": "https://veinsofrevenge.forumactif.com/t12-03-intervention-pnj",
-        "webhook": "https://discord.com/api/webhooks/1500604680412205206/1NAe_kPICVjdl9QV6vEe_mPTW75yKVgZUoX7kg6m5US5QmxAnzeSv6JHsJ8ESK0BLv0f"
+        "webhook": WEBHOOK_DEMANDES,
     },
     {
         "name": "Archiver ses RPs",
         "url": "https://veinsofrevenge.forumactif.com/t13-04-archiver-ses-rps",
-        "webhook": "https://discord.com/api/webhooks/1500604680412205206/1NAe_kPICVjdl9QV6vEe_mPTW75yKVgZUoX7kg6m5US5QmxAnzeSv6JHsJ8ESK0BLv0f"
+        "webhook": WEBHOOK_DEMANDES,
     },
     {
         "name": "Réclamer ses dollars",
         "url": "https://veinsofrevenge.forumactif.com/t14-05-reclamer-ses-dollars",
-        "webhook": "https://discord.com/api/webhooks/1500604680412205206/1NAe_kPICVjdl9QV6vEe_mPTW75yKVgZUoX7kg6m5US5QmxAnzeSv6JHsJ8ESK0BLv0f"
+        "webhook": WEBHOOK_DEMANDES,
     },
     {
         "name": "Boutique RP",
         "url": "https://veinsofrevenge.forumactif.com/t24-01-boutique-rp",
-        "webhook": "https://discord.com/api/webhooks/1500604680412205206/1NAe_kPICVjdl9QV6vEe_mPTW75yKVgZUoX7kg6m5US5QmxAnzeSv6JHsJ8ESK0BLv0f"
+        "webhook": WEBHOOK_DEMANDES,
     },
     {
         "name": "Boutique hors RP",
         "url": "https://veinsofrevenge.forumactif.com/t25-02-boutique-hors-rp",
-        "webhook": "https://discord.com/api/webhooks/1500604680412205206/1NAe_kPICVjdl9QV6vEe_mPTW75yKVgZUoX7kg6m5US5QmxAnzeSv6JHsJ8ESK0BLv0f"
-    }
+        "webhook": WEBHOOK_DEMANDES,
+    },
 ]
-
-seen_ids = set()
 
 
 def get_posts(topic_url):
-    response = requests.get(topic_url)
+    response = requests.get(topic_url, timeout=30)
+    response.raise_for_status()
+
     soup = BeautifulSoup(response.text, "html.parser")
-    if "t12-03-intervention-pnj" in topic_url:
-        print("DEBUG PNJ")
-        print("URL finale :", response.url)
-        print("Status :", response.status_code)
-        print("Titre page :", soup.title.text.strip() if soup.title else "Pas de titre")
-        print(response.text[:1000])
+    posts = []
 
-    posts = [
-        post for post in soup.select(".post")
-        if post.get("id") and post.get("id") != "0"
-    ]
-
-    result = []
-
-    for post in posts:
+    for post in soup.select(".post"):
         post_id = post.get("id")
 
-        author_element = post.select_one(".postprofile-name strong, .postprofile-name")
-        author = author_element.text.strip() if author_element else "Inconnu"
+        if not post_id or post_id == "0":
+            continue
 
-        result.append((post_id, author))
+        author_element = post.select_one(
+            ".postprofile-name strong, .postprofile-name"
+        )
+        author = (
+            author_element.get_text(strip=True)
+            if author_element
+            else "Inconnu"
+        )
 
-    return result
+        posts.append((post_id, author))
+
+    return posts
 
 
 def send_discord(topic, author):
-    data = {
+    message = {
         "content": (
             f"📌 Nouveau message de **{author}**\n"
             f"📍 Sujet : **{topic['name']}**\n"
             f"{topic['url']}"
-        )
+        ),
+        "allowed_mentions": {"parse": []},
     }
 
-    response = requests.post(topic["webhook"], json=data)
-
-    print("Webhook utilisé :", topic["name"])
-    print("Code Discord :", response.status_code)
-    print("Réponse Discord :", response.text)
-
-
-print("Surveillance lancée...")
-
-for topic in TOPICS:
-    try:
-        for post_id, author in get_posts(topic["url"]):
-            seen_ids.add(f"{topic['url']}#{post_id}")
-
-        print(f"Initialisé : {topic['name']}")
-
-    except Exception as e:
-        print(f"Erreur pendant l'initialisation de {topic['name']} :", e)
-
-print("Initialisation terminée.")
+    response = requests.post(
+        topic["webhook"],
+        json=message,
+        timeout=30,
+    )
+    response.raise_for_status()
 
 
-while True:
-    try:
-        for topic in TOPICS:
+def load_state():
+    if not STATE_FILE.exists():
+        return None
+
+    with STATE_FILE.open("r", encoding="utf-8") as file:
+        return set(json.load(file))
+
+
+def save_state(seen_ids):
+    temporary = STATE_FILE.with_suffix(".tmp")
+
+    with temporary.open("w", encoding="utf-8") as file:
+        json.dump(
+            sorted(seen_ids),
+            file,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    temporary.replace(STATE_FILE)
+
+
+def main():
+    seen_ids = load_state()
+    first_run = seen_ids is None
+
+    if first_run:
+        seen_ids = set()
+        print("Première exécution : initialisation.")
+
+    errors = []
+
+    for topic in TOPICS:
+        try:
             posts = get_posts(topic["url"])
 
-            print(f"Vérification : {topic['name']} — {len(posts)} messages trouvés")
+            if not posts:
+                raise RuntimeError("Aucun message détecté")
+
+            print(f"{topic['name']} : {len(posts)} messages")
 
             for post_id, author in posts:
                 unique_id = f"{topic['url']}#{post_id}"
 
-                if unique_id not in seen_ids:
-                    print(f"Nouveau message détecté : {topic['name']} — {author} — ID {post_id}")
+                if unique_id in seen_ids:
+                    continue
+
+                if not first_run:
                     send_discord(topic, author)
-                    seen_ids.add(unique_id)
+                    print(f"Notification envoyée : {author}")
 
-    except Exception as e:
-        print("Erreur :", e)
+                seen_ids.add(unique_id)
+                save_state(seen_ids)
 
-    time.sleep(CHECK_INTERVAL)
+        except Exception as error:
+            errors.append(topic["name"])
+            print(f"Erreur dans {topic['name']} : {error}")
+
+    save_state(seen_ids)
+
+    if errors:
+        raise RuntimeError(
+            "Vérification incomplète : " + ", ".join(errors)
+        )
+
+    print("Vérification terminée.")
+
+
+if __name__ == "__main__":
+    main()
