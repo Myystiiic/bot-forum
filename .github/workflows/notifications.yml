@@ -35,9 +35,11 @@ jobs:
           DISCORD_WEBHOOK_ADMIN: ${{ secrets.DISCORD_WEBHOOK_ADMIN }}
           DISCORD_WEBHOOK_DEMANDES: ${{ secrets.DISCORD_WEBHOOK_DEMANDES }}
         run: python bot_forum.py
-
+      
       - name: Sauvegarder les notifications traitees
+        if: always()
         run: |
+
           if [ -f notifications_state.json ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
