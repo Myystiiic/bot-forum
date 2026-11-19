@@ -70,15 +70,6 @@ def get_posts(topic_url):
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
-    
-    if "t24-01-boutique-rp" in topic_url:
-        print("=== DIAGNOSTIC BOUTIQUE RP ===")
-        print("URL finale :", response.url)
-        print("Statut HTTP :", response.status_code)
-        print("Titre :", soup.title.get_text(strip=True) if soup.title else "Aucun")
-        print("Nombre de .post :", len(soup.select(".post")))
-        print("Message 43 présent :", soup.select_one('[id="43"]') is not None)
-        print("=== FIN DIAGNOSTIC ===")
         
     posts = []
 
