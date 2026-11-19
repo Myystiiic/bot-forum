@@ -156,16 +156,14 @@ def main():
         try:
             posts = get_posts(topic["url"])
 
-            
-if not posts:
-    print(
-        f"{topic['name']} : aucun message détecté "
-        "(vérification HTML nécessaire)"
-    )
-    continue
+            if not posts:
+                print(
+                    f"{topic['name']} : aucun message détecté "
+                    "(vérification HTML nécessaire)"
+                )
+                continue
 
-print(f"{topic['name']} : {len(posts)} messages")
-
+            print(f"{topic['name']} : {len(posts)} messages")
 
             for post_id, author in posts:
                 unique_id = f"{topic['url']}#{post_id}"
