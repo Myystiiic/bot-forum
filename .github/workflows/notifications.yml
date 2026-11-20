@@ -3,7 +3,7 @@ name: Notifications Forumactif Discord
 
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "9,29,49 * * * *"
   workflow_dispatch:
 
 permissions:
